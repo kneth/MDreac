@@ -1,0 +1,183 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C M. Malek Mansour and F. Baras                             C
+C Physica A 188, 253-276 (1992)                             C
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+
+      SUBROUTINE DoReactions(time)
+
+      IMPLICIT NONE
+      INCLUDE 'mdreac.inc'
+#include "mdreac.common"
+
+      INTEGER time
+
+      INTEGER i, j, k, ilab, jlab
+      REAL*8  rxij, ryij, r2, drandy
+
+
+C Reset variables
+      nr1=0
+      nr2=0
+      nr3=0
+      nr4=0
+      nr5=0
+      nr6=0
+      nr7=0
+
+C Loop over all odd pairs
+      DO k=1, numbpair2
+         i=ipair2(k)
+         j=ipair2(k)
+         ilab=label(i)
+         jlab=label(j)
+         
+C U+W -> V+W
+         IF ((ilab .EQ. 0) .AND. (jlab .EQ. 1)) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper2(k)
+            ryij=qy(i)-qy(j)+yper2(k)
+#else /* PBC_LIST */
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif /* PBC_LIST */
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob1) THEN
+                  label(i)=2
+                  nr1=nr1+1
+               ENDIF
+            ENDIF
+         ENDIF
+C W+U -> W+V
+         IF ((ilab .EQ. 1) .AND. (jlab .EQ. 0)) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper2(k)
+            ryij=qy(i)-qy(j)+yper2(k)
+#else /* PBC_LIST */
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif /* PBC_LIST */
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob2) THEN
+                  label(j)=2
+                  nr1=nr1+1
+               ENDIF
+            ENDIF
+         ENDIF
+C V+S -> S+S and S+V -> S+S
+         IF (((ilab .EQ. 2) .AND. (jlab .EQ. 3)) .OR.
+     _        ((ilab .EQ. 3) .AND. (jlab .EQ. 2))) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper2(k)
+            ryij=qy(i)-qy(j)+yper2(k)
+#else /* PBC_LIST */
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif /* PBC_LIST */
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob3) THEN
+                  label(i)=3
+                  label(j)=3
+                  nr3=nr3+1
+               ENDIF
+            ENDIF
+         ENDIF
+C S+U -> S+S and U+S -> S+S
+         IF (((ilab .EQ. 0) .AND. (jlab .EQ. 3)) .OR.
+     _        ((ilab .EQ. 3) .AND. (jlab .EQ. 0))) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper2(k)
+            ryij=qy(i)-qy(j)+yper2(k)
+#else /* PBC_LIST */
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif /* PBC_LIST */
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob4) THEN
+                  label(i)=3
+                  label(j)=3
+                  nr4=nr4+1
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
+
+C Loop over all even pairs
+      DO k=1, numbpair1
+         i=ipair1(k)
+         j=ipair1(k)
+         ilab=label(i)
+         jlab=label(j)
+         
+C V+V -> W+S
+         IF ((ilab .EQ. 2) .AND. (jlab .EQ. 2)) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper1(k)
+            ryij=qy(i)-qy(j)+yper1(k)
+#else /* PBC_LIST */
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif /* PBC_LIST */
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob1) THEN
+                  label(i)=1
+                  label(j)=0
+                  nr2=nr2+1
+               ENDIF
+            ENDIF
+         ENDIF
+C S+S -> S+V or S+S -> S+U
+         IF (((ilab .EQ. 0) .AND. (jlab .EQ. 3)) .OR.
+     _        ((ilab .EQ. 3) .AND. (jlab .EQ. 0))) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper1(k)
+            ryij=qy(i)-qy(j)+yper1(k)
+#else /* PBC_LIST */
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif /* PBC_LIST */
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob5) THEN
+                  CALL RandUnit(drandy)
+                  IF (drandy .LT. prob6) THEN
+                     label(i)=2
+                     label(j)=3
+                     nr4=nr4+1
+                  ELSE
+                     label(i)=0
+                     label(j)=3
+                     nr4=nr4+1
+                  ENDIF
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
+      END
+         
+         
+            
+            

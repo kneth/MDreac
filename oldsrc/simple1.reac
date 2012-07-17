@@ -1,0 +1,48 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C DoReactions is an realisation of the scheme 2A -> B               C
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+      SUBROUTINE DoReactions(time)
+
+      IMPLICIT NONE
+      INCLUDE 'mdreac.inc'
+#include "mdreac.common"
+      
+      INTEGER time
+
+      INTEGER i, j, k, ilab, jlab
+      REAL*8  rxij, ryij, r2, drandy
+      REAL*8  r6
+
+C Reset variables
+      nr1=0
+C Loop over all interacting particles (only even pairs)
+      DO k=1, numbpair1
+         i=ipair1(k)
+         j=jpair1(k)
+         ilab=label(i)
+         jlab=label(j)
+C Check which reaction to do 
+C A+A->2B
+         IF ((ilab .EQ. 0) .AND. (jlab .EQ. 0)) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper1(k)
+            ryij=qy(i)-qy(j)+yper1(k)
+#else /* PBC_LIST */
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif /* PBC_LIST */
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob1) THEN
+                  label(i)=1
+                  label(j)=1
+                  nr1=nr1+1
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
+      END

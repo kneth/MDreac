@@ -1,0 +1,98 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C JCP 110(15), 5128-5134 (1999)
+C A==1, X==2, Y==3, Z==dimer, B==5
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+      SUBROUTINE DoReactions(time)
+
+      IMPLICIT NONE
+      INCLUDE 'mdreac.inc'
+#include "mdreac.common"
+
+      INTEGER time
+
+      INTEGER i, j, ilab, jlab
+      REAL*8 rxij, ryij, r2, drandy
+      
+C Reset variables
+      nr1=0
+      nr2=0
+      nr3=0
+      nr4=0
+      nr5=0
+
+C A->X
+      DO i=1, num
+         IF (label(i) .EQ. 1) THEN
+            CALL RandUnit(drandy)
+            IF (drandy .LT. prob1) THEN
+               label(i)=2
+               nr1=nr1+1
+            ENDIF
+         ENDIF
+      ENDDO
+C convert Bs in order to keep constant A
+      j=1
+      DO i=1, nr1
+         IF (label(j) .EQ. 5) THEN
+            label(j)=1
+         ENDIF
+         j=j+1
+      ENDDO
+
+C Y->B
+      DO i=1, num
+         IF (label(i) .EQ. 4) THEN
+            CALL RandUnit(drandy)
+            IF (drandy .LT. prob5) THEN
+               label(i)=5
+               nr5=nr5+1
+            ENDIF
+         ENDIF
+      ENDDO
+
+C 2Y->Z
+      DO k=1, numbpair1
+         i=ipair1(k)
+         j=ipair2(k)
+         ilab=label(i)
+         IF (ilab(i) .EQ. 3) THEN
+            rxij=qx(i)-qx(j)+xper1(k)
+            ryij=qy(i)-qy(j)+yper1(k)
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob2) THEN
+                  label(i)=4
+                  label(j)=4
+                  dimer(i)=j
+                  dimer(j)=i
+                  nr2=nr2+1
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
+
+C Z->2Y
+      DO i=1, num
+         IF (label(i) .EQ. 4) THEN
+            j=dimer(i)
+            rxij=qx(i)-qx(j)+xper1(k)
+            ryij=qy(i)-qy(j)+yper1(k)
+            r2=rxij**2+ryij**2
+            IF (r2 .GT. r2dimer) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob3) THEN
+                  label(i)=3
+                  label(j)=3
+                  dimer(i)=0
+                  dimer(j)=0
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
+
+C X+Z -> Y+Z
+
+
+      END

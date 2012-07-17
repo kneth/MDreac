@@ -1,0 +1,143 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C DoReactions is an realisation of the Brusselator, i.e.            C
+C the reaction scheme:                                              C
+C   2A+B <-> 3A, A+B <-> 2B                                         C
+C A==0, B==1                                                        C
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+      SUBROUTINE DoReactions(time)
+
+      IMPLICIT NONE
+      INCLUDE 'mdreac.inc'
+#include "mdreac.common"
+      
+      INTEGER time
+
+      INTEGER i, j, k, ilab, jlab
+      REAL*8  rxij, ryij, r2, drandy
+      REAL*8  r6
+
+C Reset variables
+      nr1=0
+      nr2=0
+      nr3=0
+      nr4=0
+
+C Loop over all interacting particles (even pairs)
+      DO m=1, numbpair1
+         i=ipair2(m)
+         j=jpair2(m)
+         ilab=label(i)
+         jlab=label(j)
+C Check which reaction to do 
+C 2B -> A+B
+         IF ((ilab .EQ. 1) .AND. (jlab .EQ. 1)) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper2(m)
+            ryij=qy(i)-qy(j)+yper2(m)
+#else /* PBC_LIST */
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif /* PBC_LIST */
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob1) THEN
+                  CALL RandUnit(drandy)
+                  IF (drandy .LT. 0.5) THENC
+                     label(i)=0
+                     label(j)=1
+                  ELSE
+                     label(i)=1
+                     label(j)=0
+                  ENDIF
+                  nr1=nr1+1
+               ENDIF
+            ENDIF
+C (A+A)+B -> 3B or (A+A)+A -> 2A + B
+         ELSEIF ((ilab .EQ. 1) .AND. (jlab .EQ. 1)) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper2(m)
+            ryij=qy(i)-qy(j)+yper2(m)
+#else
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+              icell=1+INT((qx(i)+Len2)*celli)
+     _        +INT((qy(i)+Len2)*celli)*Mcell
+              k=head(icell)
+1000          IF (k .NE. 0) THEN
+                rxik=qx(i)-qx(k)
+                rxik=rxik-Len*DNINT(rxik*iLen)
+                ryik=qy(i)-qy(k)
+                ryik=ryik-Len*DNINT(ryik*iLen)
+                r2=rxik**2+ryik**2
+                IF (r2 .LT. rreac2) THEN
+                   rxjk=qx(j)-qx(k)
+                   rxjk=rxjk-Len*DNINT(rxjk*iLen)
+                   ryjk=qy(j)-qy(k)
+                   ryjk=ryjk-Len*DNINT(ryjk*iLen)
+                   r2=rxjk**2+ryjk**2
+                   IF (r2 .LT. rreac2) THEN
+                      IF (label(k) .EQ. 1) THEN
+                         CALL RandUnit(drandy)
+                         IF (drandy .LT. prob2) THEN
+                            label(i)=1
+                            label(j)=1
+                            label(k)=1
+                            nr2=nr2+1
+                         ENDIF
+                      ENDIF
+                   ENDIF
+                ENDIF
+                k=list(k)
+                GOTO 1000
+              ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
+
+C Odd pairs
+      DO m=1, numbpair2
+        i=ipair1(m)
+        j=jpair1(m)
+        ilab=label(i)
+        jlab=label(j)
+C 2B -> A + B
+        IF ((ilab .EQ. 1) .AND. (jlab .EQ. 1)) THEN
+#ifdef PBC_LIST
+           rxij=qx(i)-qx(j)+xper2(m)
+           ryij=qy(i)-qy(j)+yper2(m)
+#else /* PBC_LIST */
+           rxij=qx(i)-qx(j)
+           ryij=qy(i)-qy(j)
+           rxij=rxij-Len*DNINT(rxij*iLen)
+           ryij=ryij-Len*DNINT(ryij*iLen)
+#endif /* PBC_LIST */
+           r2=rxij**2+ryij**2
+           IF (r2 .LT. rreac2) THEN
+              CALL RandUnit(drandy)
+              IF (drandy .LT. prob3) THEN
+                CALL RandUnit(drandy)
+                IF (drandy .LT. 0.5) THENC
+                  label(i)
+                    label(j)=1
+                  ELSE
+                     label(i)=1
+                     label(j)=0
+                  ENDIF
+                  nr1=nr1+1
+               ENDIF
+            ENDIF
+
+        
+      ENDDO
+
+      
+      END

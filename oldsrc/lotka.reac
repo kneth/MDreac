@@ -1,0 +1,248 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C DoReactions is an realisation of the Volterra-Lotka model, i.e.   C
+C the reaction scheme:                                              C
+C   A+X->2X, X+Y->2Y, Y->S (and S is converted to A)                C
+C   A (0), X (1), Y (2), S (3)                                      C
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+      SUBROUTINE DoReactions(time)
+
+      IMPLICIT NONE
+      INCLUDE 'mdreac.inc'
+#include "mdreac.common"
+      
+      INTEGER time
+
+      INTEGER i, j, k, ilab, jlab
+      REAL*8  rxij, ryij, r2, drandy
+      REAL*8  r6
+
+C Reset variables
+      nr1=0
+      nr2=0
+      nr3=0
+      nr4=0
+      R1pot=0.D0
+      R2pot=0.D0
+      R3pot=0.D0
+      R1kin=0.D0
+      R2kin=0.D0
+      R3kin=0.D0
+#ifndef PVM_VER
+      DO i=1, 3
+         DO j=1, 3
+            naborreac(i, j)=0.D0
+         ENDDO
+      ENDDO
+      meanAA=0.D0
+      numnabor=0
+#endif
+
+C Loop over all interacting particles (only odd pairs)
+      DO k=1, numbpair2
+         i=ipair2(k)
+         j=jpair2(k)
+         ilab=label(i)
+         jlab=label(j)
+C Check which reaction to do 
+C A*+X->2X
+         IF (((ilab .EQ. 0) .AND. (jlab .EQ. 1)) .OR. 
+     _        ((jlab .EQ. 0) .AND. (ilab .EQ. 1))) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper2(k)
+            ryij=qy(i)-qy(j)+yper2(k)
+#else /* PBC_LIST */
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif /* PBC_LIST */
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob1) THEN
+#ifndef PVM_VER
+                  IF (ilab .EQ. 0) THEN
+                     CALL SumNabor(i)
+                  ELSE
+                     CALL SumNabor(j)
+                  ENDIF
+#endif
+                  label(i)=1
+                  label(j)=1
+                  nr1=nr1+1
+C Y -> P -> A
+ 1000             CALL RandInt(num, i)
+                  IF (label(i) .EQ. 2) THEN
+                     label(i)=0
+                  ELSE
+                     GOTO 1000
+                  ENDIF
+                  R1kin=R1kin+vx(i)**2+vy(i)**2+vx(j)**2+vy(j)**2
+                  r2=1.D0/r2
+                  r6=r2*r2*r2
+                  R1pot=R1pot+r6*(r6-1.D0)
+               ENDIF
+            ENDIF
+C X+Y->2Y
+         ELSEIF (((ilab .EQ. 1) .AND. (jlab .EQ. 2)) .OR.
+     _           ((jlab .EQ. 1) .AND. (ilab .EQ. 2))) THEN
+#ifdef PBC_LIST
+            rxij=qx(i)-qx(j)+xper2(k)
+            ryij=qy(i)-qy(j)+yper2(k)
+#else
+            rxij=qx(i)-qx(j)
+            ryij=qy(i)-qy(j)
+            rxij=rxij-Len*DNINT(rxij*iLen)
+            ryij=ryij-Len*DNINT(ryij*iLen)
+#endif
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob2) THEN
+                  label(i)=2
+                  label(j)=2
+                  nr2=nr2+1
+                  R2kin=R2kin+vx(i)**2+vy(i)**2+vx(j)**2+vy(j)**2
+                  r2=1.D0/r2
+                  r6=r2*r2*r2
+                  R2pot=R2pot+r6*(r6-1.D0)
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
+
+C Y -> S
+C      DO i=1, num
+C         IF (label(i) .EQ. 2) THEN
+C            CALL RandUnit(drandy)
+C            IF (drandy .LT. prob3) THEN
+C               label(i)=3
+C               nr3=nr3+1
+C            ENDIF
+C         ENDIF
+C      ENDDO
+      END
+
+
+
+#ifdef PVM_VER
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C DoReactionsPVM performs the reactions for the particles which are C
+C interacting which particles on another CPU.                       C
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+      SUBROUTINE DoReactionsPVM
+
+      IMPLICIT NONE
+      INCLUDE 'mdreac.inc'
+#include "mdreac.common"
+
+      INTEGER icell, jcell, ip, jp, jx, ilab, jlab, jc
+      REAL*8  rxi, ryi, rxij, ryij, r2, drandy
+
+      DO icell=lastcell-Mcell+1, lastcell
+         ip=head(icell)
+ 3020    IF (ip .NE. 0) THEN
+            rxi=qx(ip)
+            ryi=qy(ip)
+            ilab=label(ip)
+            DO jc=1, 3
+               jx=map(4*(icell-1)+jc)
+               jp=head(jx)
+ 3030          IF (jp .NE. 0) THEN
+                  jlab=label(jp)
+                  
+C Check which reaction to do 
+C A*+X->2X
+                  IF (((ilab .EQ. 0) .AND. (jlab .EQ. 1)) .OR. 
+     _                 ((jlab .EQ. 0) .AND. (ilab .EQ. 1))) THEN
+                     
+                     rxij=rxi-qx(jp)
+                     ryij=ryi-qy(jp)
+                     IF (rxij .GE. Len2) THEN
+                        rxij=rxij-Len
+                     ELSEIF (rxij .LE. Len2m) THEN
+                        rxij=rxij+Len
+                     ENDIF
+                     IF (ryij .GE. Len2) THEN
+                        ryij=ryij-Len
+                     ELSEIF (ryij .LE. Len2m) THEN
+                        ryij=ryij+Len
+                     ENDIF
+                     r2=rxij**2+ryij**2
+                     IF (r2 .LT. rreac2) THEN
+                        CALL RandUnit(drandy)
+                        IF (drandy .LT. prob1) THEN
+                           ilab=1
+                           label(jp)=1
+                           nr1=nr1+1
+                        ENDIF
+                     ENDIF
+C X+Y->2Y
+                  ELSEIF (((ilab .EQ. 1) .AND. (jlab .EQ. 2)) .OR.
+     _                    ((jlab .EQ. 1) .AND. (ilab .EQ. 2))) THEN
+                     
+                     rxij=rxi-qx(jp)
+                     ryij=ryi-qy(jp)
+                     IF (rxij .GE. Len2) THEN
+                        rxij=rxij-Len
+                     ELSEIF (rxij .LE. Len2m) THEN
+                        rxij=rxij+Len
+                     ENDIF
+                     IF (ryij .GE. Len2) THEN
+                        ryij=ryij-Len
+                     ELSEIF (ryij .LE. Len2m) THEN
+                        ryij=ryij+Len
+                     ENDIF
+                     r2=rxij**2+ryij**2
+                     IF (r2 .LT. rreac2) THEN
+                        CALL RandUnit(drandy)
+                        IF (drandy .LT. prob2) THEN
+                           ilab=2
+                           label(jp)=2
+                           nr2=nr2+1
+                        ENDIF
+                     ENDIF
+C Y+A*->2A or Y+A*->2A*
+                  ELSEIF (((ilab .EQ. 2) .AND. (jlab .EQ. 0)) .OR.
+     _                    ((jlab .EQ. 2) .AND. (ilab .EQ. 0))) THEN
+
+                     rxij=rxi-qx(jp)
+                     ryij=ryi-qy(jp)
+                     IF (rxij .GE. Len2) THEN
+                        rxij=rxij-Len
+                     ELSEIF (rxij .LE. Len2m) THEN
+                        rxij=rxij+Len
+                     ENDIF
+                     IF (ryij .GE. Len2) THEN
+                        ryij=ryij-Len
+                     ELSEIF (ryij .LE. Len2m) THEN
+                        ryij=ryij+Len
+                     ENDIF
+                     r2=rxij**2+ryij**2
+                     IF (r2 .LT. rreac2) THEN
+                        CALL RandUnit(drandy)
+                        IF (drandy .LT. prob1) THEN
+#ifdef PHOTO_REACT
+                           ilab=3
+                           label(jp)=3
+#else
+                           ilab=0
+                           label(jp)=0
+#endif
+                           nr3=nr3+1
+                        ENDIF
+                     ENDIF       
+                  ENDIF
+                  jp=list(jp)
+                  GOTO 3030
+               ENDIF
+            ENDDO
+            label(ip)=ilab
+            ip=list(ip)
+            GOTO 3020
+         ENDIF
+      ENDDO
+      END
+#endif

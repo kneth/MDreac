@@ -1,0 +1,187 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C Common blocks used in mdreac.f                                    C
+C                                                                   C
+C (C) Copyright 1995-1999 by                                        C
+C Kenneth Geisshirt <kneth@sslug.dk>                                C
+C                                                                   C
+C Please read mdreac.f for details.                                 C
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+
+C qx, qy       = positions
+C vx, vy       = velocities/momentum
+C fx, fy       = forces/accelerations
+C label        = type of species
+C ipair, jpair = indeces to interacting particle pairs
+C numbpair     = number of interacting pairs
+C map          = neighbouring cells
+C Mcell, Ncell = number of cells
+C celli        = inverse of cell length
+C Len, ...     = length of MD box
+C Epot, Ekin   = energies
+C press        = used to compute pressure
+C prob1, ...   = reaction quantities
+C head, list   = linked-list for cells
+C Ekin, Ekin2  = kinetic energy, momentum
+C forcelist    = list of particles to be send in ComputeForces
+C nforce       = number of particles in forcelist
+C nr1, nr2, nr3= number of reaction i has occured
+C R1pot, R1kin = energy in a reaction
+C nboxx, nboxy = how many boxes have particle traveled
+C R0x, Rx0     = initial positions
+C meansqr      = mean square displacement
+C nabortable   = table of neighbours at distance Rnabor
+C naborreac    = table of neighbours for reacting particles
+C Ea1, Ea2, Ea3= reaction parameters for deterministic schemes
+C qxII, qyII   = positions, region II
+C vxII, vyII   = velocities, region II
+C fxII, fyII   = forces, region II
+C LenII, ...   = lengths for region II
+C dimer        = partner in a dimer
+      COMMON /poss/  qx, qy
+      COMMON /vels/  vx, vy
+      COMMON /fors/  fx, fy
+      COMMON /labl/  label, dimer
+#ifdef RESERVOIR
+      COMMON /regII/ qxII, qyII, vxII, vyII, fxII, fyII, labelII
+#endif
+      COMMON /pair1/ ipair1, jpair1, numbpair1
+      COMMON /pair2/ ipair2, jpair2, numbpair2
+      COMMON /cell/  map, Mcell, Ncell, celli, Mcelld, Mcell2
+      COMMON /misc/  Len, Len2, Len2m, Epot, press, iLen
+#ifdef RESERVOIR
+      COMMON /miscII/ LenII, Len2II, Len2mII, iLenII
+#endif
+      COMMON /reac/  prob1, prob2, prob3, rreac, rreac2, prob4,
+     _     prob5, prob6, Ea1, Ea2, Ea3
+#ifdef VERLET
+      COMMON /clink/ list, point
+#else /* not VERLET */
+      COMMON /clink/ head, list
+#endif /* not VERLET */
+      COMMON /nose/  eta, dof, invQ, Ekin, Ekin2
+      COMMON /param/ rho, na, nx, ny, nz, ns, num, nall
+#ifdef RESERVOIR
+      COMMON /param2/ numII, rhoII
+#endif
+#ifdef TWO_THERMO
+      COMMON /run/   tempA, tempC, step
+#else /* TWO_THERMO */
+      COMMON /run/   temp, step
+#endif /* TWO_THERMO */
+      COMMON /cut/   rcut1, rcut2, r2cut1, r2cut2
+      COMMON /count/ nr1, nr2, nr3, nr4, nr5, nr6, nr7
+      COMMON /ener/  R1pot, R1kin, R2pot, R2kin, R3pot, R3kin
+#ifdef PBC_LIST
+      COMMON /pbc1/  xper1, yper1
+      COMMON /pbc2/  xper2, yper2
+#endif  
+      COMMON /diff/  nboxx, nboxy, R0x, R0y, meansqr
+      COMMON /nabor/ Rnabor, R2nabor, nabortable, naborreac, 
+     _     meanAA, numnabor
+#ifdef RESERVOIR
+      COMMON /linkII/ headII, listII
+      COMMON /pbcII/ xperII, yperII
+      COMMON /pairII/ ipairII, jpairII, numbpairII
+#endif /* RESERVOIR */
+
+#ifdef PVM_VER
+C Globals for the PVM version
+C   mytid=this task; myparent=parent id
+C   alltids=all task ids (only used by the parent process)
+C   ymin, ymax = min/max of this cpu
+C   CPUup, CPUdown=ids of the neighbours
+C   firstcell, lastcell=first and last cell in the linked-list
+C   CPUid = the internal cpu-number
+      COMMON /task/ myparent, mytid, alltids, CPUup, CPUdown, ymin,
+     _    ymax, ntask, firstcell, lastcell, CPUid
+	
+      COMMON /task2/ forcelist, nforce
+	
+      INTEGER mytid, myparent, firstcell, lastcell
+      INTEGER alltids(MaxTask), CPUid
+      REAL*8  ymin, ymax
+      INTEGER CPUup, CPUdown, ntask
+      INTEGER forcelist(ntot), nforce
+#endif  
+
+C Positions, velocities, forces, and labels
+      REAL*8  qx(ntot), qy(ntot)
+      REAL*8  vx(ntot), vy(ntot)
+      REAL*8  fx(ntot), fy(ntot)
+      INTEGER label(ntot), dimer(ntot)
+#ifdef RESERVOIR
+      REAL*8  qxII(ntot), qyII(ntot)
+      REAL*8  vxII(ntot), vyII(ntot)
+      REAL*8  fxII(ntot), fyII(ntot)
+      INTEGER label(ntot)
+      REAL*8  Len2II, Len2mII, Len2II, iLenII
+#endif /* RESERVOIR */
+      
+	
+C Misc. variables
+#ifdef TWO_THERMO
+      REAL*8  eta(0:2), tempA, tempC
+#else /* TWO_THERMO */
+      REAL*8  eta, temp
+#endif /* TWO_THERMO */
+      REAL*8  Epot, dof, invQ, Ekin, Ekin2
+      INTEGER numbpair1, ipair1(MaxPair*ntot), jpair1(MaxPair*ntot)
+      INTEGER numbpair2, ipair2(MaxPair*ntot), jpair2(MaxPair*ntot)
+#ifdef RESERVOIR
+      INTEGER numbpairII, ipairII(MaxPair*ntot), jpairII(MaxPair*ntot)
+#endif /* RESERVOIR */
+      REAL*8  Len, Len2, Len2m, press, iLen
+      INTEGER nr1, nr2, nr3, nr4, nr5, nr6, nr7
+      REAL*8  R1pot, R1kin, R2pot, R2kin, R3pot, R3kin
+	
+C Variables for diffusion calculation
+      INTEGER nboxx(ntot), nboxy(ntot)
+      REAL*8  R0x(ntot), R0y(ntot), meansqr
+      REAL*8  Rnabor, R2nabor
+      REAL*8  nabortable(3, 3), naborreac(3, 3)
+      REAL*8  meanAA
+      INTEGER numnabor
+
+C Parameters
+      INTEGER na, nx, ny, nz, ns, step, num, nall
+      REAL*8  rho, rhoII
+      REAL*8  prob1, prob2, prob3, rreac, rreac2
+      REAl*8  prob4, prob5, prob6
+      REAL*8  Ea1, Ea2, Ea3
+      REAL*8  r2cut1, r2cut2, rcut1, rcut2
+
+#ifdef VERLET
+      INTEGER list(MaxPair*ntot), point(ntot)
+#else /* not VERLET */
+C Variables used by the linked-cell structure
+      INTEGER Mcell, Ncell, Mcell2
+      REAL*8  celli, Mcelld
+      INTEGER map(4*MaxCell)
+      INTEGER head(MaxCell), list(ntot)
+#endif /* not VERLET */
+#ifdef RESERVOIR
+      INTEGER headII(MaxCell), listII(ntot)
+#endif /* RESERVOIR */
+#ifdef PBC_LIST
+      REAL*8  xper1(MaxPair*ntot), yper1(MaxPair*ntot)
+      REAL*8  xper2(MaxPair*ntot), yper2(MaxPair*ntot)
+#ifdef RESERVOIR
+      REAL*8  xperII(MaxPair*ntot), yperII(MaxPair*ntot)
+#endif /* RESERVOIR */
+#endif /* PBC_LIST */
+
+#ifndef OLD_REAC
+      REAL*8  rmin(ntot), r2reac
+      INTEGER partner(ntot)
+#endif
+
+#ifdef TIMING
+C calctime = time used in calculations
+C commtime = time used to communication (only PVM version)
+C mclock() = external timing routine
+      REAL*4  calctime, commtime, timearray(2)
+      REAL*4  etime
+      COMMON /timer/ calctime, commtime, timearray
+#endif
+

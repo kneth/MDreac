@@ -1,0 +1,74 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C DoReactions for the mechanism:
+C A+B <-> B+B
+C A==0, B==1
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+      SUBROUTINE DoReactions(time)
+
+      IMPLICIT NONE
+      INCLUDE 'mdreac.inc'
+#include "mdreac.common"
+
+      INTEGER time
+
+      INTEGER i, j, k, ilab, jlab
+      REAL*8  rxij, ryij, r2, r6, drandy
+
+
+      nr1=0
+      nr2=0
+      nr3=0
+      nr4=0
+      nr5=0
+      nr6=0
+
+C First odd pairs
+      DO k=1, numbpair2
+         i=ipair2(k)
+         j=jpair2(k)
+         ilab=label(i)
+         jlab=label(j)
+         IF (((ilab .EQ. 0) .AND. (jlab .EQ. 1)) .OR.
+     _        ((ilab .EQ. 1) .AND. (jlab .EQ. 0))) THEN
+            rxij=qx(i)-qx(j)+xper2(k)
+            ryij=qy(i)-qy(j)+yper2(k)
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob1) THEN
+                  label(i)=1
+                  label(j)=1
+                  nr1=nr1+1
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
+
+C Then even pairs
+      DO k=1, numbpair1
+         i=ipair1(k)
+         j=jpair1(k)
+         ilab=label(i)
+         jlab=label(j)
+         IF ((ilab .EQ. 1) .AND. (jlab .EQ. 1)) THEN
+            rxij=qx(i)-qx(j)+xper1(k)
+            ryij=qy(i)-qy(j)+yper1(k)
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               CALL RandUnit(drandy)
+               IF (drandy .LT. prob2) THEN
+                  CALL RandUnit(drandy)
+                  IF (drandy .LT. 0.5) THEN
+                     label(i)=1
+                     label(j)=0
+                  ELSE
+                     label(i)=0
+                     label(j)=1
+                  ENDIF
+                  nr3=nr3+1
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
+      END

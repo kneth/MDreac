@@ -1,0 +1,140 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C J. Math. Chem. 17, 1-14 (1995)
+C J. Math. Chem. 19, 111-130 (1996)
+C Almost determistic method
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+
+      SUBROUTINE DoReactions(time)
+
+      IMPLICIT NONE
+      INCLUDE 'mdreac.inc'
+#include "mdreac.common"
+
+      INTEGER time
+
+
+      INTEGER i, j, k, ilab, jlab
+      REAL*8  rxij, ryij, r2, drandy
+      REAL*8  Ecol, dvx, dvy
+
+C Reset variables
+      nr1=0
+      nr2=0
+      nr3=0
+      nr4=0
+      nr5=0
+
+C Loop over all interacting pairs
+C Bimolecular reactions
+      DO k=1, numbpair2
+         i=ipair2(k)
+         j=jpair2(k)
+         ilab=label(i)
+         jlab=label(j)
+
+C A+X -> 2X
+         IF (((ilab .EQ. 0) .AND. (jlab .EQ. 1)) .OR.
+     _        ((jlab .EQ. 0) .AND. (ilab .EQ. 1))) THEN
+            rxij=qx(i)-qx(j)+xper2(k)
+            ryij=qy(i)-qy(j)+xper2(k)
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               dvx=vx(i)-vx(j)
+               dvy=vy(i)-vy(j)
+               Ecol=(dvx*rxij+dvy*ryij)**2
+               Ecol=0.25*Ecol/r2
+               IF (Ecol .GT. Ea1) THEN 
+                  label(i)=1
+                  label(j)=1
+                  nr1=nr1+1
+ 1000             CALL RandInt(num, i)
+                  IF (label(i) .EQ. 5) THEN
+                     label(i)=0
+                  ELSE
+                     GOTO 1000
+                  ENDIF
+               ENDIF
+            ENDIF
+C X+Y -> P+Y
+         ELSEIF ((ilab .EQ. 1) .AND. (jlab .EQ. 2)) THEN
+            rxij=qx(i)-qx(j)+xper2(k)
+            ryij=qy(i)-qy(j)+xper2(k)
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               dvx=vx(i)-vx(j)
+               dvy=vy(i)-vy(j)
+               Ecol=(dvx*rxij+dvy*ryij)**2
+               Ecol=0.25*Ecol/r2
+               IF (Ecol .GT. Ea2) THEN
+                  label(i)=5
+                  nr2=nr2+1
+               ENDIF
+            ENDIF
+C Y+X -> Y+P
+         ELSEIF ((jlab .EQ. 1) .AND. (ilab .EQ. 2)) THEN
+            rxij=qx(i)-qx(j)+xper2(k)
+            ryij=qy(i)-qy(j)+xper2(k)
+            r2=rxij**2+ryij**2
+            IF (r2 .LT. rreac2) THEN
+               dvx=vx(i)-vx(j)
+               dvy=vy(i)-vy(j)
+               Ecol=(dvx*rxij+dvy*ryij)**2
+               Ecol=0.25*Ecol/r2
+               IF (Ecol .GT. Ea2) THEN
+                  label(j)=5
+                  nr2=nr2+1
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
+
+C Loop over all particles
+C Unimolecular reactions
+      nx=0
+      ny=0
+      nz=0
+      DO k=1, num
+         IF (label(k) .EQ. 2) THEN
+            ny=0
+         ELSEIF (label(k) .EQ. 1) THEN
+            nx=0
+         ELSEIF (label(k) .EQ. 3) THEN
+            nz=0
+         ENDIF
+      ENDDO
+C Y -> P
+      k=INT(DFLOAT(ny)*prob3)
+      DO i=1, k
+ 1010    CALL RandInt(num, j)
+         IF (label(j) .EQ. 2) THEN
+            label(j)=5
+            nr3=nr3+1
+         ELSE
+            GOTO 1010
+         ENDIF
+      ENDDO
+      k=INT(DFLOAT(nx)*prob3)
+C X -> Z
+      DO i=1, k
+ 1020    CALL RandInt(num, j)
+         IF (label(j) .EQ. 1) THEN
+            label(j)=3
+            nr4=nr4+1
+         ELSE
+            GOTO 1020
+         ENDIF
+      ENDDO
+C Z -> Y
+      k=INT(DFLOAT(nz)*prob3)
+      DO i=1, k
+ 1030    CALL RandInt(num, j)
+         IF (label(j) .EQ. 3) THEN
+            label(j)=2
+            nr5=nr5+1
+         ELSE
+            GOTO 1030
+         ENDIF
+      ENDDO
+      END
+

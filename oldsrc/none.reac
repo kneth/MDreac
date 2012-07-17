@@ -1,0 +1,38 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C No reactions!
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+      SUBROUTINE DoReactions(time)
+
+      IMPLICIT NONE
+      INCLUDE 'mdreac.inc'
+#include "mdreac.common"
+
+      INTEGER time
+
+      nr1=0
+      nr2=0
+      nr3=0
+      nr4=0
+      nr5=0
+      nr6=0
+
+      END
+
+
+#ifdef PVM_VER
+      SUBROUTINE DoReactionsPVM
+
+      IMPLICIT NONE
+      INCLUDE 'mdreac.inc'
+#include "mdreac.common"
+
+      nr1=0
+      nr2=0
+      nr3=0
+      nr4=0
+      nr5=0
+      nr6=0
+
+      END
+#endif /* PVM_VER */
