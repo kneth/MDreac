@@ -11,3 +11,8 @@ f2c and fort77 packages. A parallel version is included. It is done using PVM.
 A newer - and simpler - version is located in the directory src. It is written in C and was 
 developed as part of a series of feature articles on multicore programming. It was published
 by the Danish magazine Alt om DATA.
+
+License
+-------
+The package is distributed under GNU General Public License v2. See the file LICENSE for more
+information.
