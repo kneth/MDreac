@@ -1,6 +1,6 @@
 .PHONY: clean install check-syntax
 CC	= gcc
-CFLAGS	= -Wall -g -fPIC
+CFLAGS	= -Wall -O3 -fPIC -fopenmp
 LDFLAGS	= -lm
 INSTALL	= install
 PREFIX	= ${HOME}
@@ -18,7 +18,7 @@ install:
 	$(INSTALL) -m 755 mkconf ${PREFIX}/bin
 
 clean:
-	rm -f md2 mkconf *.o nul 
+	rm -f md2 mkconf *.o nul *~
 
 check-syntax:
 	$(CC) -o nul -S ${CHK_SOURCES}

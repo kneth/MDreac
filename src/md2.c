@@ -3,7 +3,7 @@
  * md2 - molecular dynamics simulation of mixtures of simple liquids in 
  *       two dimensions
  *
- * (C) Copyright 2008 by Kenneth Geisshirt <http://kenneth.geisshirt.dk/>
+ * (C) Copyright 2008-2012 by Kenneth Geisshirt <http://kenneth.geisshirt.dk/>
  * Released under GNU General Public License v2 or later.
  * 
  * References:
@@ -154,6 +154,7 @@ void ReadConfiguration(void) {
         /* adjust velocities */
     sumx /= (double)(nA+nB);
     sumy /= (double)(nA+nB);
+#pragma omp parallel for
     for(i=0; i<(nA+nB); i++) {
         vx[i] -= sumx;
         vy[i] -= sumy;
@@ -162,6 +163,7 @@ void ReadConfiguration(void) {
         /* scale to temperature */
     dof = 2.0*((double)(nA+nB))-2.0;
     sc = sqrt(dof*T/sum);
+#pragma omp parallel for
     for(i=0; i<(nA+nB); i++) {
         vx[i] *= sc;
         vy[i] *= sc;
@@ -289,10 +291,12 @@ void NoseHoover(void) {
     K = 0.5*dt*eta;
     eta1 = 1.0-K;
     eta2 = 1.0/(1.0+K);
+#pragma omp parallel for
     for(i=0; i<(nA+nB); i++) { /* update velocities */
         vx[i] = (vx[i]*eta1+dt48*fx[i])*eta2;
         vy[i] = (vy[i]*eta1+dt48*fy[i])*eta2;
     }
+#pragma omp parallel for
     for(i=0; i<(nA+nB); i++) { /* update positions */
         rx[i] += vx[i]*dt;
         ry[i] += vy[i]*dt;
@@ -308,9 +312,11 @@ void PutInBox(void) {
     double        len2 = 0.5*L;
     double        cL = L/(double)nCells;
 
+#pragma omp parallel for
     for(i=0; i<nCells*nCells; i++) {
         head[i] = -1;
     }
+#pragma omp parallel for
     for(i=0; i<(nA+nB); i++) {
         c = (unsigned long)((rx[i]+len2)/cL)*nCells
             + (unsigned long)((ry[i]+len2)/cL);
@@ -373,13 +379,14 @@ void ComputeForces(void) {
     double           pot;
     double           rxij, ryij, r2, r6, Rc;
 
+#pragma omp parallel for
     for(i=0; i<(nA+nB); i++) { /* reset forces */
         fx[i] = 0.0;
         fy[i] = 0.0;
     }
     Epot = 0.0;
     P    = 0.0;
-
+#pragma omp parallel for
     for(k=0; k<Np; k++) { /* loop over all pairs */
         i = ipair[k];
         j = jpair[k];
