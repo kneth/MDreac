@@ -1,11 +1,15 @@
 /*******************************************************************************
  *
- * md2 - molecular dynamics simulation of mixtures of simple liquids in 
+ * md2 - molecular dynamics simulation of mixtures of simple liquids in
  *       two dimensions
  *
- * (C) Copyright 2008-2012 by Kenneth Geisshirt <http://kenneth.geisshirt.dk/>
+ * Example:
+ *   ./md2 -T 2.0 -d 0.8 -t 10000 -a 512 -b 512 -z 4.0 -r 1.5 -R 1.5 \
+ *     -o test.data -c test.conf -C final.conf -H 0.0005 -Q 0.5
+ *
+ * (C) Copyright 2008-2013 by Kenneth Geisshirt <http://kenneth.geisshirt.dk/>
  * Released under GNU General Public License v2 or later.
- * 
+ *
  * References:
  * [1] Computer Simulation of Liquids. M.P. Allen and D.J. Tildesley. Claredon
  *     Press, 1987.
@@ -70,7 +74,7 @@ void Usage(char *prgname) {
     printf("  -R     cut-off radius (odd pairs)\n");
     printf("  -z     buffer zone for interacting particles\n");
     printf("  -H     length of time step\n");
-    exit(0); 
+    exit(0);
 }
 
 void ReadParameters(int argc, char *argv[]) {
@@ -134,7 +138,7 @@ void ReadConfiguration(void) {
     double         sum = 0.0;
     double         dof, sc, dL;
     unsigned long  i, j, m, n, k;
-    
+
     n = nA+nB;
     m = (unsigned long)sqrt((double)n);
     dL = L/(double)m;
@@ -149,9 +153,9 @@ void ReadConfiguration(void) {
             sumy += vy[k];
             sum += vx[k]*vx[k]+vy[k]*vy[k];
         }
-    }        
+    }
 
-        /* adjust velocities */
+    /* adjust velocities */
     sumx /= (double)(nA+nB);
     sumy /= (double)(nA+nB);
 #pragma omp parallel for
@@ -160,7 +164,7 @@ void ReadConfiguration(void) {
         vy[i] -= sumy;
     }
 
-        /* scale to temperature */
+    /* scale to temperature */
     dof = 2.0*((double)(nA+nB))-2.0;
     sc = sqrt(dof*T/sum);
 #pragma omp parallel for
@@ -184,7 +188,7 @@ void WriteConfiguration(char *filename) {
     for(i=0; i<(nA+nB); i++) {
         fprintf(outfile, "%e %e %e %e\n", rx[i], ry[i], vx[i], vy[i]);
     }
-    
+
     fclose(outfile);
 }
 
@@ -228,7 +232,7 @@ void Initialize(void) {
     unsigned long i, j, imap, m;
     unsigned long n = nA+nB;
     double Lbuf;
-    
+
     printf("md2 - (C) Copyright 2008 by Kenneth Geisshirt\n");
     printf("Parameters:\n");
     printf("  Number of particles: %ld + %ld = %ld\n", nA, nB, n);
@@ -241,18 +245,20 @@ void Initialize(void) {
     printf("  output             : %s\n", outname);
     printf("Derived parameters:\n");
 
-        /* allocate memory */
+    eta = 0.0;
+
+    /* allocate memory */
     rx = (double *)calloc(n, sizeof(double));
     ry = (double *)calloc(n, sizeof(double));
     vx = (double *)calloc(n, sizeof(double));
     vy = (double *)calloc(n, sizeof(double));
     fx = (double *)calloc(n, sizeof(double));
-    fy = (double *)calloc(n, sizeof(double));  
-    
+    fy = (double *)calloc(n, sizeof(double));
+
     /* calculate additional parameters */
     L = sqrt(((double)n)/rho);
     printf("  Length:              %e\n", L);
-    
+
     /* cell structures for force optimizations */
     nCells = (int)floor(L/(2.0*Rbuf));
     Lbuf = L/(double)nCells;
@@ -261,7 +267,7 @@ void Initialize(void) {
     head = (unsigned long *)calloc(nCells*nCells, sizeof(unsigned long));
     list = (unsigned long *)calloc(n, sizeof(unsigned long));
     map = (unsigned long *)calloc(4*nCells*nCells, sizeof(unsigned long));
-    
+
     for(j=0; j<nCells; j++) {
         for(i=0; i<nCells; i++) {
             imap = 4*Icell(i, j);
@@ -285,8 +291,7 @@ void NoseHoover(void) {
     double         dof = 2.0*(double)(nA+nB)-2.0;
     double         dt48 = 48.0*dt;
     unsigned long  i;
-    
-    
+
     sum = 0.0;
     K = 0.5*dt*eta;
     eta1 = 1.0-K;
@@ -329,7 +334,7 @@ void MakeList(void) {
     unsigned long i, j, k, n, jcell;
     double        rxi, ryi;
     double        rxij, ryij, r2;
-    
+
     Np = 0;
     for(k=0; k<(nCells*nCells); k++) {
         i = head[k];
@@ -416,7 +421,7 @@ int main(int argc, char *argv[]) {
 
     unsigned long i;
     FILE *statfile;
-    
+
     ReadParameters(argc, argv);
     Initialize();
     statfile = fopen(outname, "w");
@@ -427,7 +432,9 @@ int main(int argc, char *argv[]) {
         MakeList();
         ComputeForces();
         NoseHoover();
-        fprintf(statfile, "%ld %e %e %e %e\n", i, Ekin, Epot, P, eta);
+        if ((nsteps % 1000) == 0) {
+            fprintf(statfile, "%ld %e %e %e %e\n", i, Ekin, Epot, P, eta);
+        }
     }
     fclose(statfile);
     WriteConfiguration(final_conf);

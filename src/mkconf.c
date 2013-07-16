@@ -2,7 +2,7 @@
  *
  * mkconf - generate configuration for md2
  *
- * (C) Copyright 2008 by Kenneth Geisshirt <http://kenneth.geisshirt.dk/>
+ * (C) Copyright 2008-2012 by Kenneth Geisshirt <http://kenneth.geisshirt.dk/>
  * Released under GNU General Public License v2 or later.
  * 
  * References:
