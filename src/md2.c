@@ -5,7 +5,7 @@
  *
  * Example:
  *   ./md2 -T 2.0 -d 0.8 -t 10000 -a 512 -b 512 -z 4.0 -r 1.5 -R 1.5 \
- *     -o test.data -c test.conf -C final.conf -H 0.0005 -Q 0.5
+ *     -o test.data -c test.conf -C final.conf -H 0.0005 -Q 0.5 -n 100
  *
  * (C) Copyright 2008-2013 by Kenneth Geisshirt <http://kenneth.geisshirt.dk/>
  * Released under GNU General Public License v2 or later.
@@ -28,11 +28,12 @@
 /*** Parameters             ***/
 double         T;           // temperature
 double         rho;         // density
-unsigned long  nA, nB;      // number of particles
+size_t         nA, nB;      // number of particles
 double         Rc_even;     // cut-off radius
 double         Rc_odd;
 double         Rbuf;        // buffer zone
-unsigned long  nsteps;      // number of time steps
+size_t         nsteps;      // number of time steps
+size_t         iosteps;     // number of time steps between printouts
 char          *init_conf;   // initial configuration
 char          *final_conf;  // final configuration
 char          *outname;     // output file name
@@ -41,7 +42,7 @@ double         dt;          // length of time step
 
 /*** Calculated parameters  ***/
 double         L;           // length of the simulation box
-unsigned long  nCells;      // cells in each direction
+size_t         nCells;      // cells in each direction
 
 
 /*** Global variables       ***/
@@ -52,10 +53,10 @@ double         eta;         // thermostat
 double         Epot;        // potential energy
 double         Ekin;        // kinetic energy
 double         P;           // pressure
-unsigned long *map;
-unsigned long *head, *list; // linked lists
-unsigned long  Np;          // number of interacting pairs
-unsigned long *ipair, *jpair; // interacting pairs
+size_t        *map;
+size_t        *head, *list; // linked lists
+size_t         Np;          // number of interacting pairs
+size_t        *ipair, *jpair; // interacting pairs
 
 
 void Usage(char *prgname) {
@@ -64,6 +65,7 @@ void Usage(char *prgname) {
     printf("  -T     temperature\n");
     printf("  -d     density\n");
     printf("  -t     number of time steps\n");
+    printf("  -n     number of time steps between printouts\n");
     printf("  -a     number of A particles\n");
     printf("  -b     number of B particles\n");
     printf("  -c     initial configuration\n");
@@ -83,53 +85,56 @@ void ReadParameters(int argc, char *argv[]) {
     extern char *optarg;
 
     progname = strdup(argv[0]);
-    while ((c=getopt(argc, argv, "hT:d:t:a:b:c:C:Q:o:r:R:H:z:")) != EOF) {
+    while ((c=getopt(argc, argv, "hT:d:t:a:b:c:C:Q:o:r:R:H:z:n:")) != EOF) {
         switch (c) {
-            case 'h':
-                Usage(progname);
-                break;
-            case 'T':
-                T = atof(optarg);
-                break;
-            case 'd':
-                rho = atof(optarg);
-                break;
-            case 't':
-                nsteps = strtoul(optarg, NULL, 0);
-                break;
-            case 'a':
-                nA = strtoul(optarg, NULL, 0);
-                break;
-            case 'b':
-                nB = strtoul(optarg, NULL, 0);
-                break;
-            case 'c':
-                init_conf = strdup(optarg);
-                break;
-            case 'C':
-                final_conf = strdup(optarg);
-                break;
-            case 'Q':
-                Q = atof(optarg);
-                break;
-            case 'o':
-                outname = strdup(optarg);
-                break;
-            case 'r':
-                Rc_even = atof(optarg);
-                break;
-            case 'R':
-                Rc_odd = atof(optarg);
-                break;
-            case 'H':
-                dt = atof(optarg);
-                break;
-            case 'z':
-                Rbuf = atof(optarg);
-                break;
-            default:
-                fprintf(stderr, "Warning: option %c ignored.\n", c);
-                break;
+        case 'h':
+            Usage(progname);
+            break;
+        case 'T':
+            T = atof(optarg);
+            break;
+        case 'd':
+            rho = atof(optarg);
+            break;
+        case 't':
+            nsteps = (size_t)strtoul(optarg, NULL, 0);
+            break;
+        case 'n':
+            iosteps = (size_t)strtoul(optarg, NULL, 0);
+            break;
+        case 'a':
+            nA = (size_t)strtoul(optarg, NULL, 0);
+            break;
+        case 'b':
+            nB = (size_t)strtoul(optarg, NULL, 0);
+            break;
+        case 'c':
+            init_conf = strdup(optarg);
+            break;
+        case 'C':
+            final_conf = strdup(optarg);
+            break;
+        case 'Q':
+            Q = atof(optarg);
+            break;
+        case 'o':
+            outname = strdup(optarg);
+            break;
+        case 'r':
+            Rc_even = atof(optarg);
+            break;
+        case 'R':
+            Rc_odd = atof(optarg);
+            break;
+        case 'H':
+            dt = atof(optarg);
+            break;
+        case 'z':
+            Rbuf = atof(optarg);
+            break;
+        default:
+            fprintf(stderr, "Warning: option %c ignored.\n", c);
+            break;
         }
     }
 }
@@ -137,10 +142,10 @@ void ReadConfiguration(void) {
     double         sumx = 0.0, sumy = 0.0;
     double         sum = 0.0;
     double         dof, sc, dL;
-    unsigned long  i, j, m, n, k;
+    size_t  i, j, m, n, k;
 
     n = nA+nB;
-    m = (unsigned long)sqrt((double)n);
+    m = (size_t)sqrt((double)n);
     dL = L/(double)m;
     for(i=0; i<m; i++) {
         for(j=0; j<m; j++) {
@@ -176,7 +181,7 @@ void ReadConfiguration(void) {
 
 void WriteConfiguration(char *filename) {
     FILE            *outfile;
-    unsigned long    i;
+    size_t    i;
 
     outfile = fopen(filename, "w");
 
@@ -192,7 +197,7 @@ void WriteConfiguration(char *filename) {
     fclose(outfile);
 }
 
-double Rcut(unsigned long i, unsigned long j) {
+double Rcut(size_t i, size_t j) {
     if (((i < (nA-1)) && (j < (nA-1))) || ((i > nA) && (j > nA))) {
         return Rc_even;
     } else {
@@ -206,7 +211,7 @@ double pbc(double d) {
     return 0.0;
 }
 
-unsigned long Icell(unsigned long i, unsigned long j) {
+size_t Icell(size_t i, size_t j) {
     if (i == -1) {
         i = nCells-1;
     } else if (i == nCells) {
@@ -222,15 +227,15 @@ unsigned long Icell(unsigned long i, unsigned long j) {
 
 void ApplyPerBoundaries(void) {
 
-    unsigned long i;
+    size_t i;
     for(i=0; i<(nA+nB); i++) {
         rx[i] += pbc(rx[i]);
         ry[i] += pbc(ry[i]);
     }
 }
 void Initialize(void) {
-    unsigned long i, j, imap, m;
-    unsigned long n = nA+nB;
+    size_t i, j, imap, m;
+    size_t n = nA+nB;
     double Lbuf;
 
     printf("md2 - (C) Copyright 2008 by Kenneth Geisshirt\n");
@@ -264,9 +269,9 @@ void Initialize(void) {
     Lbuf = L/(double)nCells;
     printf("  Number of cells:     %ld\n", nCells);
     printf("  Length of cell:      %e\n", Lbuf);
-    head = (unsigned long *)calloc(nCells*nCells, sizeof(unsigned long));
-    list = (unsigned long *)calloc(n, sizeof(unsigned long));
-    map = (unsigned long *)calloc(4*nCells*nCells, sizeof(unsigned long));
+    head = (size_t *)calloc(nCells*nCells, sizeof(size_t));
+    list = (size_t *)calloc(n, sizeof(size_t));
+    map = (size_t *)calloc(4*nCells*nCells, sizeof(size_t));
 
     for(j=0; j<nCells; j++) {
         for(i=0; i<nCells; i++) {
@@ -278,11 +283,11 @@ void Initialize(void) {
         }
     }
 
-    m = (unsigned long)(1.5*floor(1.0+rho*Lbuf*Lbuf));
+    m = (size_t)(1.5*floor(1.0+rho*Lbuf*Lbuf));
     m = 9*nCells*nCells*m*m;
     printf("  Max. pairs:          %ld\n", m);
-    ipair = (unsigned long *)calloc(m, sizeof(unsigned long));
-    jpair = (unsigned long *)calloc(m, sizeof(unsigned long));
+    ipair = (size_t *)calloc(m, sizeof(size_t));
+    jpair = (size_t *)calloc(m, sizeof(size_t));
 }
 
 void NoseHoover(void) {
@@ -290,7 +295,7 @@ void NoseHoover(void) {
     double         eta1, eta2, K, sum;
     double         dof = 2.0*(double)(nA+nB)-2.0;
     double         dt48 = 48.0*dt;
-    unsigned long  i;
+    size_t  i;
 
     sum = 0.0;
     K = 0.5*dt*eta;
@@ -313,7 +318,7 @@ void NoseHoover(void) {
 
 
 void PutInBox(void) {
-    unsigned long i, c;
+    size_t i, c;
     double        len2 = 0.5*L;
     double        cL = L/(double)nCells;
 
@@ -323,15 +328,15 @@ void PutInBox(void) {
     }
 #pragma omp parallel for
     for(i=0; i<(nA+nB); i++) {
-        c = (unsigned long)((rx[i]+len2)/cL)*nCells
-            + (unsigned long)((ry[i]+len2)/cL);
+        c = (size_t)((rx[i]+len2)/cL)*nCells
+            + (size_t)((ry[i]+len2)/cL);
         list[i] = head[c];
         head[c] = i;
     }
 }
 
 void MakeList(void) {
-    unsigned long i, j, k, n, jcell;
+    size_t i, j, k, n, jcell;
     double        rxi, ryi;
     double        rxij, ryij, r2;
 
@@ -380,7 +385,7 @@ void MakeList(void) {
 
 
 void ComputeForces(void) {
-    unsigned long    i, j, k;
+    size_t    i, j, k;
     double           pot;
     double           rxij, ryij, r2, r6, Rc;
 
@@ -419,7 +424,7 @@ void ComputeForces(void) {
 
 int main(int argc, char *argv[]) {
 
-    unsigned long i;
+    size_t i;
     FILE *statfile;
 
     ReadParameters(argc, argv);
@@ -432,7 +437,7 @@ int main(int argc, char *argv[]) {
         MakeList();
         ComputeForces();
         NoseHoover();
-        if ((nsteps % 1000) == 0) {
+        if ((i % iosteps) == 0) {
             fprintf(statfile, "%ld %e %e %e %e\n", i, Ekin, Epot, P, eta);
         }
     }
