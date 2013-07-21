@@ -5,7 +5,8 @@
  *
  * Example:
  *   ./md2 -T 2.0 -d 0.8 -t 10000 -a 512 -b 512 -z 4.0 -r 1.5 -R 1.5 \
- *     -o test.data -c test.conf -C final.conf -H 0.0005 -Q 0.5 -n 100
+ *     -o test.data -c test.conf -C final.conf -H 0.0005 -Q 0.5 -n 100 \
+ *     -l 10
  *
  * (C) Copyright 2008-2013 by Kenneth Geisshirt <http://kenneth.geisshirt.dk/>
  * Released under GNU General Public License v2 or later.
@@ -34,6 +35,7 @@ double         Rc_odd;
 double         Rbuf;        // buffer zone
 size_t         nsteps;      // number of time steps
 size_t         iosteps;     // number of time steps between printouts
+size_t         liststeps;   // number of time steps between list calibration
 char          *init_conf;   // initial configuration
 char          *final_conf;  // final configuration
 char          *outname;     // output file name
@@ -66,6 +68,7 @@ void Usage(char *prgname) {
     printf("  -d     density\n");
     printf("  -t     number of time steps\n");
     printf("  -n     number of time steps between printouts\n");
+    printf("  -l     number of time steps between list calibration\n");
     printf("  -a     number of A particles\n");
     printf("  -b     number of B particles\n");
     printf("  -c     initial configuration\n");
@@ -85,7 +88,7 @@ void ReadParameters(int argc, char *argv[]) {
     extern char *optarg;
 
     progname = strdup(argv[0]);
-    while ((c=getopt(argc, argv, "hT:d:t:a:b:c:C:Q:o:r:R:H:z:n:")) != EOF) {
+    while ((c=getopt(argc, argv, "hT:d:t:a:b:c:C:Q:o:r:R:H:z:n:l:")) != EOF) {
         switch (c) {
         case 'h':
             Usage(progname);
@@ -101,6 +104,9 @@ void ReadParameters(int argc, char *argv[]) {
             break;
         case 'n':
             iosteps = (size_t)strtoul(optarg, NULL, 0);
+            break;
+        case 'l':
+            liststeps = (size_t)strtoul(optarg, NULL, 0);
             break;
         case 'a':
             nA = (size_t)strtoul(optarg, NULL, 0);
@@ -326,7 +332,7 @@ void PutInBox(void) {
     for(i=0; i<nCells*nCells; i++) {
         head[i] = -1;
     }
-#pragma omp parallel for
+
     for(i=0; i<(nA+nB); i++) {
         c = (size_t)((rx[i]+len2)/cL)*nCells
             + (size_t)((ry[i]+len2)/cL);
@@ -433,8 +439,10 @@ int main(int argc, char *argv[]) {
     ReadConfiguration();
     for(i=0; i<nsteps; i++) { /* a number of single time steps */
         ApplyPerBoundaries();
-        PutInBox();
-        MakeList();
+        if ((i % liststeps) == 0) {
+            PutInBox();
+            MakeList();
+        }
         ComputeForces();
         NoseHoover();
         if ((i % iosteps) == 0) {
