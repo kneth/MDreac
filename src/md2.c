@@ -41,6 +41,7 @@ char          *final_conf;  // final configuration
 char          *outname;     // output file name
 double         Q;           // thermostat strength
 double         dt;          // length of time step
+int            microcanon;  // 1 = use microcanonical ensemble
 
 /*** Calculated parameters  ***/
 double         L;           // length of the simulation box
@@ -79,6 +80,7 @@ void Usage(char *prgname) {
     printf("  -R     cut-off radius (odd pairs)\n");
     printf("  -z     buffer zone for interacting particles\n");
     printf("  -H     length of time step\n");
+    printf("  -u     use microcanonical ensemble (default: canonical)\n");
     exit(0);
 }
 
@@ -87,11 +89,16 @@ void ReadParameters(int argc, char *argv[]) {
     char        *progname;
     extern char *optarg;
 
+    microcanon = 0;
+
     progname = strdup(argv[0]);
-    while ((c=getopt(argc, argv, "hT:d:t:a:b:c:C:Q:o:r:R:H:z:n:l:")) != EOF) {
+    while ((c=getopt(argc, argv, "hT:d:t:a:b:c:C:Q:o:r:R:H:z:n:l:u")) != EOF) {
         switch (c) {
         case 'h':
             Usage(progname);
+            break;
+        case 'u':
+            microcanon = 1;
             break;
         case 'T':
             T = atof(optarg);
@@ -244,12 +251,18 @@ void Initialize(void) {
     size_t n = nA+nB;
     double Lbuf;
 
-    printf("md2 - (C) Copyright 2008 by Kenneth Geisshirt\n");
+    printf("md2 - (C) Copyright 2008-2013 by Kenneth Geisshirt\n");
     printf("Parameters:\n");
     printf("  Number of particles: %ld + %ld = %ld\n", nA, nB, n);
     printf("  Temperature:         %e\n", T);
     printf("  Density:             %e\n", rho);
     printf("  Buffer zone:         %e\n", Rbuf);
+    if (microcanon) {
+        printf("  Using microcanonical ensemble\n");
+    }
+    else {
+        printf("  Using canonical ensemble\n");
+    }
     printf("File names:\n");
     printf("  init. configuration: %s\n", init_conf);
     printf("  final configuration: %s\n", final_conf);
@@ -296,8 +309,26 @@ void Initialize(void) {
     jpair = (size_t *)calloc(m, sizeof(size_t));
 }
 
-void NoseHoover(void) {
+void Leapfrog(void) {
+    size_t i;
+    double sum = 0.0;
 
+#pragma omp parallel for
+    for(i=0; i<(nA+nB); ++i) {
+        vx[i] += dt*fx[i];
+        vy[i] += dt*fy[i];
+        sum += vx[i]*vx[i]+vy[i]*vy[i];
+    }
+
+#pragma omp parallel for
+    for(i=0; i<(nA+nB); ++i) {
+        rx[i] += vx[i]*dt;
+        ry[i] += vy[i]*dt;
+    }
+    Ekin = 0.5*sum;
+}
+
+void NoseHoover(void) {
     double         eta1, eta2, K, sum;
     double         dof = 2.0*(double)(nA+nB)-2.0;
     double         dt48 = 48.0*dt;
@@ -330,7 +361,7 @@ void PutInBox(void) {
 
 #pragma omp parallel for
     for(i=0; i<nCells*nCells; i++) {
-        head[i] = -1;
+        head[i] = nA+nB+1;
     }
 
     for(i=0; i<(nA+nB); i++) {
@@ -351,9 +382,9 @@ void MakeList(void) {
         i = head[k];
         rxi = rx[i];
         ryi = ry[i];
-        while (i > 0) {
+        while (i != (nA+nB+1)) {
             j = head[k];
-            while (j > 0) {
+            while (j != (nA+nB+1)) {
                 rxij = rxi-rx[j];
                 ryij = ryi-ry[j];
                 rxij += pbc(rxij);
@@ -370,7 +401,7 @@ void MakeList(void) {
             for(n=0; n<4; n++) {
                 jcell = map[4*k+n];
                 j = head[jcell];
-                while (j > 0) {
+                while (j != (nA+nB+1)) {
                     rxij = rxi-rx[j];
                     ryij = ryi-ry[j];
                     rxij += pbc(rxij);
@@ -444,9 +475,14 @@ int main(int argc, char *argv[]) {
             MakeList();
         }
         ComputeForces();
-        NoseHoover();
+        if (microcanon) {
+            Leapfrog();
+        }
+        else {
+            NoseHoover();
+        }
         if ((i % iosteps) == 0) {
-            fprintf(statfile, "%ld %e %e %e %e\n", i, Ekin, Epot, P, eta);
+            fprintf(statfile, "%ld %e %e %e %e %e\n", i, Ekin, Epot, P, eta, Ekin+Epot);
         }
     }
     fclose(statfile);
