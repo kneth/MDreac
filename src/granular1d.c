@@ -36,13 +36,23 @@ size_t N_coll;      // number of collisions
 // derived parameters
 double L;           // length of system
 
-
 // statistics
 size_t N_pp;        // particle/particle collisions
 size_t N_pl;        // collisions with left wall
 size_t N_pr;        // collisions with right wall 
 double time;        // master time
- 
+
+int dcompare(const void *p1, const void *p2) {
+    double a = *(double *)p1;
+    double b = *(double *)p2;
+    if (a > b)
+        return 1;
+    else if (a < b)
+        return -1;
+    else
+        return 0;
+}
+
 void Initialize(void) {
     double dL, sum = 0.0, sum_sq = 0.0;
     size_t i;
@@ -51,19 +61,26 @@ void Initialize(void) {
     v = (double *)calloc(N, sizeof(double));
     
     L = (double)N/rho;
-    dL = L/(double)(N+2);
+    dL = (L-4.0*R)/(double)N;
     for(i=0; i<N; ++i) {
-        x[i]    = dL*(double)i;
-        v[i]    = 2.0*drand48()-1.0; // low quality RNG
+        x[i]    = (double)(i+1)*dL;
+        v[i]    = 2.0*drand48()-1.0;
         sum    += v[i];
-        sum_sq += v[i]*v[i];
     }
-    
+
+    for(i=0; i<(N-1); ++i) {
+        if (x[i+1]-x[i] <= 2.0*R) {
+            printf("Overlap\n");
+            exit(-1);
+        }
+    }
+        
     // adjust velocities
     sum /= (double)N;
 #pragma omp parallel for
     for(i=0; i<N; ++i) {
         v[i] -= sum;
+        sum_sq += v[i]*v[i];
     }
     
     // scale to temperature
@@ -76,7 +93,7 @@ void Initialize(void) {
     time = 0.0;
 }
  
-void Dump(void) {
+void Bump(void) {
     size_t i, which;
     double dt, dx, dv, tau, tmp;
     enum { P_NONE, P_P, P_LEFT, P_RIGHT } what;
@@ -86,11 +103,11 @@ void Dump(void) {
     what  = P_NONE;
     
     // particle-particle collisions
-    for(i=0; i<(N-1); ++i) {
+    for(i=0; i<(N-2); ++i) {
         dv  = v[i+1]-v[i];
-        dx  = x[i+1]-x[i]-2.0*R;
+        dx  = x[i]-x[i+1]-2.0*R;
         tau = dx/dv;
-        if (tau >= 0.0 && dt > tau) {
+        if (tau >= 0.0 && dt >= tau) {
             dt    = tau;
             which = i;
             what  = P_P;
@@ -98,18 +115,18 @@ void Dump(void) {
     }
     
     // left wall
-    tau = -(x[0]-R)/v[0];
-    if (tau >= 0.0 && dt > tau) {
+    tau = (R-x[0])/v[0];
+    if (tau >= 0.0 && dt >= tau) {
         dt    = tau;
         which = 0;
         what  = P_LEFT;
     }
     
     // right wall
-    tau = (L-R-x[N])/v[N];
-    if (tau >= 0.0 && dt > tau) {
+    tau = (L-R-x[N-1])/v[N-1];
+    if (tau >= 0.0 && dt >= tau) {
         dt    = tau;
-        which = N;
+        which = N-1;
         what  = P_RIGHT;
     }
     
@@ -117,6 +134,14 @@ void Dump(void) {
 #pragma omp parallel for
     for(i=0; i<N; ++i) {
         x[i] += v[i]*dt;
+        if (x[i] > L) {
+            printf("Moving right: %ld %ld %ld\n", i, which, what);
+            exit(-1);
+        }
+        if (x[i] < 0.0) {
+            printf("Moving left: %ld %ld %ld\n", i, which, what);
+            exit(-1);
+        }
     }
     
     // collision
@@ -128,7 +153,7 @@ void Dump(void) {
         N_pp++;
         break;
     case P_RIGHT:
-        v[N] = -v[N]; // mirror
+        v[N-1] = -v[N-1]; // mirror
         N_pr++;
         break;
     case P_LEFT:
@@ -196,15 +221,17 @@ void PrintReport(size_t n) {
     size_t i;
     double x_mean = 0.0;
     double v_sq   = 0.0;
+    double v_mean = 0.0;
 
 #pragma omp parallel for
     for(i=0; i<N; ++i) {
         x_mean += x[i];
+        v_mean += v[i];
         v_sq   += v[i]*v[i];
     }
     x_mean /= (double)N;
     
-    printf("%ld %e %e %e %ld %ld %ld\n", n, time, x_mean, v_sq, N_pp, N_pl, N_pr);
+    printf("%ld %e %e %e %e %ld %ld %ld\n", n, time, x_mean, v_mean, v_sq, N_pp, N_pl, N_pr);
 }
 
 void PrintConfig(size_t n) {
@@ -219,13 +246,11 @@ int main(int argc, char *argv[]) {
     
     ParseCmdLine(argc, argv);
     Initialize();
-    //PrintConfig(0);
+    PrintConfig(0);
     N_pp = N_pl = N_pr = 0;
     for(i=0; i<N_coll; ++i) {
-        Dump();
-        if (i % 100) {
-            PrintReport(i);
-        }
+        Bump();
+        PrintReport(i);
     }
 //    PrintConfig(i);
     exit(0); 
