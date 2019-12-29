@@ -39,8 +39,7 @@ C MaxTask = maximal number of tasks
       INTEGER MaxTask
       PARAMETER (Maxtask=4)
 
-C sfsites = number of sites in each direction used in the 
+C sfsites = number of sites in each direction used in the
 C calculation of the structure factor
       INTEGER sfsites
       PARAMETER (sfsites = 128)
-
