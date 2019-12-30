@@ -2396,7 +2396,7 @@ C number of cpus
 #endif
 
  4010 FORMAT (A15, F12.8)
- 4020 FORMAT (A15, I7)
+ 4020 FORMAT (A15, I10)
 
       END
 
