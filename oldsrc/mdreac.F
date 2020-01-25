@@ -1,9 +1,8 @@
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 C Molecular Dynamics program for reactive Lennard-Jones mixtures.   C
 C                                                                   C
-C (C) Copyright 1995-1999 by                                        C
-C Kenneth Geisshirt <kneth@sslug.dk>                                C
-C http://www.sslug.dk/~kneth                                        C
+C (C) Copyright 1995-2020 by                                        C
+C Kenneth Geisshirt <geisshirt@gmail.com>                           C
 C                                                                   C
 C History:                                                          C
 C   5 Oct 1995: main program, ComputeForces, NoseHoover,            C
@@ -100,7 +99,8 @@ C               in WriteFinal corrected.                            C
 C   1 Jul 1997: Reservoir-model implemented.                        C
 C   1 Aug 1997: Verlet list implemented.                            C
 C  21 Jun 1999: Dimerisation code added.                            C
-C   5 Jul 1999: Cont dimerisation code.                            C
+C   5 Jul 1999: Cont dimerisation code.                             C
+C  30 Dec 2019: Build with a modern Fortran compiler (gcc v8)       C
 C                                                                   C
 C References:                                                       C
 C  [1]  S. Toxvaerd, Molec. Phys., 72(1), 159-168, 1991.            C
@@ -135,7 +135,7 @@ C  implementing the periodic boundary conditions. It is controlled  C
 C  by the macro PBC_LIST.                                           C
 C  The program for generating initial configurations is compiled if C
 C  the macro GEN_INIT is defined.                                   C
-C  Timing of the program is enabled by defining the macro TIMING.   C 
+C  Timing of the program is enabled by defining the macro TIMING.   C
 C  In order to compile the program, it must be preprocessed by cpp. C
 C  The macro PHOTO_REACT chooses the the photoinduced scheme, other-C
 C  wise it is the simple extended Lotka which is simulated.         C
@@ -173,7 +173,7 @@ C Messages parsed during run-time
 
 C Macros used in the PVM version
 #ifdef _PLATFORM_SP2_
-#  define PACK_TYPE PvmRaw  
+#  define PACK_TYPE PvmRaw
 #else
 #  define PACK_TYPE PvmDataDefault
 #endif
@@ -206,7 +206,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       INTEGER i
 
-C The MAIN program  
+C The MAIN program
 
 #ifdef DEBUG
       PRINT *, 'Main program has just started'
@@ -242,7 +242,7 @@ C The main loops
 #ifdef PVM_VER
 C Wait until all children have finished
       IF (myparent .EQ. PvmNoParent) THEN
-#ifdef TIMING 
+#ifdef TIMING
          itime=etime(timearray)
 #endif
          DO i=1, ntask-1
@@ -280,11 +280,11 @@ C order to reduce the number of loops in the ComputeForce routine.  C
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       SUBROUTINE NoseHoover
-     
+
       IMPLICIT NONE
       INCLUDE 'mdreac.inc'
 #include "mdreac.common"
-     
+
       INTEGER i
 #ifdef TWO_THERMO
       REAL*8  K(0:2), eta1(0:2), eta2(0:2), sum(0:2)
@@ -315,7 +315,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 #endif /* MICRO_CANON */
 
 C Loop is splitted - SP2 has four-way set ass. cache
-#ifdef TWO_THERMO 
+#ifdef TWO_THERMO
       DO i=0, 2
          sum(i)=0.D0
       ENDDO
@@ -519,7 +519,7 @@ C Neighbouring cells
                ENDIF
             ENDDO
             i=list(i)
-            GOTO 2010   
+            GOTO 2010
          ENDIF
       ENDDO
       numbpair1=ik1
@@ -536,7 +536,7 @@ C Neighbouring cells
          j=jpair1(k)
          ilabel=label(i)+1
          jlabel=label(j)+1
-#ifdef PBC_LIST 
+#ifdef PBC_LIST
          rx=qx(i)-qx(j)+xper1(k)
          ry=qy(i)-qy(j)+yper1(k)
 #else /* PBC_LIST */
@@ -556,7 +556,7 @@ C Neighbouring cells
          j=jpair2(k)
          ilabel=label(i)+1
          jlabel=label(j)+1
-#ifdef PBC_LIST 
+#ifdef PBC_LIST
          rx=qx(i)-qx(j)+xper1(k)
          ry=qy(i)-qy(j)+yper1(k)
 #else /* PBC_LIST */
@@ -593,7 +593,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       REAL*8  tmpvec1(ntot), tmpvec2(ntot)
       REAL*8  tmpvec3(ntot), tmpvec4(ntot)
       INTEGER iarray(ntot), bufid, info, numb(1)
-#ifdef TIMING 
+#ifdef TIMING
       REAL*4  itime
 #endif
 
@@ -738,7 +738,7 @@ C Recieve down
       PRINT *, 'END of CommPart'
 #endif
       END
-#endif 
+#endif
 
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 C Links sorts the particles, i.e. it finds which subcell which      C
@@ -790,7 +790,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 #endif
 
 #ifdef PVM_VER
-C The particles in the lowest row will always be send 
+C The particles in the lowest row will always be send
 C in ComputeForces
 #ifdef TIMING
       itime=etime(timearray)
@@ -891,17 +891,17 @@ C sending positions down
       CALL pvmfpack(REAL_8, xarray, nforce, 1, info)
       CALL pvmfpack(REAL_8, yarray, nforce, 1, info)
       CALL pvmfsend(CPUdown, MSG_FPOS, info)
-#ifdef DEBUG 
+#ifdef DEBUG
       PRINT *, mytid, 'sending FPOS to ', CPUdown
 #endif
       CALL pvmffreebuf(bufid, info)
 
-C recieving positions 
-#ifdef DEBUG 
+C recieving positions
+#ifdef DEBUG
       PRINT *, mytid, 'waiting FPOS from ', CPUup
 #endif
       CALL pvmfrecv(CPUup, MSG_FPOS, bufid)
-#ifdef DEBUG 
+#ifdef DEBUG
       PRINT *, mytid, 'recieved FPOS from ', CPUup
 #endif
       CALL pvmfunpack(INTEGER_4, numb, 1, 1, info)
@@ -930,7 +930,7 @@ C recieving positions
             fxi=fx(i)
             fyi=fy(i)
             ilab=label(i)
-            DO k=jbeg, jend 
+            DO k=jbeg, jend
                j=list(k)
                rxij=rxi-rx(j)
                ryij=ryi-ry(j)
@@ -967,7 +967,7 @@ C recieving positions
             fy(i)=fyi
          ENDIF
       ENDDO
-#else /* not VERLET */      
+#else /* not VERLET */
 C Loop over even pairs
       DO k=1, numbpair1
          i=ipair1(k)
@@ -998,7 +998,7 @@ C Which potential to use
 #ifdef DEBUG
             term1=term1+1
 #endif
-         ENDIF         
+         ENDIF
 #else
          IF (r2 .LT. r2cut1) THEN
             r2=1.D0/r2
@@ -1047,7 +1047,7 @@ C Which potential to use
 #ifdef DEBUG
             term1=term1+1
 #endif
-         ENDIF         
+         ENDIF
 #else
          IF (r2 .LT. r2cut2) THEN
             r2=1.D0/r2
@@ -1085,7 +1085,7 @@ C sort particles at neighbouring cpu
       DO i=lastcell+1, Mcell2
          head(i)=0
       ENDDO
-      
+
       DO i=num+1, num+i1
          icell=1+INT((qx(i)+Len2)*celli)
          IF (icell .LE. 0) THEN
@@ -1102,7 +1102,7 @@ C sort particles at neighbouring cpu
          list(i)=head(icell)
          head(icell)=i
       ENDDO
-#ifdef TIMING 
+#ifdef TIMING
       itime=etime(timearray)-itime
       commtime=commtime+itime
 #endif
@@ -1144,7 +1144,7 @@ C now compute the forces
                      r2=1.D0/r2
                      r6=r2*r2*r2
                      pot=r2*r6*(r6-0.5D0)
-                     Epot=Epot+r6*(r6-1.D0)               
+                     Epot=Epot+r6*(r6-1.D0)
                      press=press+r6*(r6-0.5D0)
                      fxi=fxi+rxij*pot
                      fyi=fyi+ryij*pot
@@ -1160,7 +1160,7 @@ C now compute the forces
                         r2=1.D0/r2
                         r6=r2*r2*r2
                         pot=r2*r6*(r6-0.5D0)
-                        Epot=Epot+r6*(r6-1.D0)               
+                        Epot=Epot+r6*(r6-1.D0)
                         press=press+r6*(r6-0.5D0)
                         fxi=fxi+rxij*pot
                         fyi=fyi+ryij*pot
@@ -1249,7 +1249,7 @@ C recieve forces
       commtime=commtime+itime
 #endif
 #endif
-      
+
       Epot=4.D0*Epot
       END
 
@@ -1402,7 +1402,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       CALL UpdateLinkCell
 #endif /* VERLET */
 #ifndef GEN_INIT
-      CALL DoReactions(start*NLupdate)      
+      CALL DoReactions(start*NLupdate)
 #endif
       DO i=1, NLupdate
          CALL OneStep(i)
@@ -1491,7 +1491,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 #include "mdreac.common"
 
       INTEGER i
-      
+
       na=0
       nx=0
       ny=0
@@ -1579,7 +1579,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       WRITE (22, 1060) time, R1pot, R1kin, R2pot, R2kin, R3pot, R3kin
       CALL MeanSqrDispl
       WRITE (19, 1070) time, meansqr
-      
+
       CALL CountSpecies
       DO i=1, 3
          nabortable(1, i)=nabortable(1, i)/DFLOAT(na)
@@ -1638,7 +1638,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 #endif /* PVM_VER */
       ENDDO
 
-#ifdef RESERVOIR 
+#ifdef RESERVOIR
       DO i=1, numII
          IF (qxII(i) .GE. Len2II) THEN
             qxII(i)=qxII(i)-LenII
@@ -1661,7 +1661,7 @@ C The reactions are include at this point. The source file must at  C
 C least has one subroutine called DoReaction.                       C
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
-#include "bin2.reac"
+#include "extlotka.reac"
 
 
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -1711,7 +1711,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
             ELSEIF (label(i) .EQ. 3) THEN
                WRITE (13, 1004) qx(i), qy(i), vx(i), vy(i)
             ENDIF
-         ENDDO 
+         ENDDO
          DO i=1, ntask-1
 #ifdef TIMING
             itime=etime(timearray)
@@ -1749,7 +1749,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
                ELSEIF (label(j) .EQ. 3) THEN
                   WRITE (13, 1004) qx(j), qy(j), vx(j), vy(j)
                ENDIF
-            ENDDO 
+            ENDDO
          ENDDO
          CLOSE (11, STATUS='KEEP')
          CLOSE (12, STATUS='KEEP')
@@ -1805,7 +1805,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
  1004 FORMAT (F12.7, F12.7, F12.7, F12.7)
  1005 FORMAT (F12.7, F12.7, F12.7, F12.7, I2)
       END
-      
+
 
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 C ReadInit reads the initial positions and velocities from a file.  C
@@ -1878,11 +1878,11 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
 
       SUBROUTINE Initialise
-      
+
       IMPLICIT NONE
       INCLUDE 'mdreac.inc'
 #include "mdreac.common"
-      
+
       INTEGER i, j, imap, Icell, ix, iy
       REAL*8  sum, sc
 
@@ -2014,7 +2014,7 @@ C Scale velocities according to temperature
 #endif /* RESERVOIR */
 
 
-C Misc. 
+C Misc.
 #ifdef TWO_THERMO
       eta(0)=0.D0
       eta(1)=0.D0
@@ -2058,7 +2058,7 @@ C Close files
       CLOSE (25, STATUS='KEEP')
       CLOSE (26, STATUS='KEEP')
       CLOSE (27, STATUS='KEEP')
-#endif  
+#endif
 
 C Print statistics
 #ifdef TIMING
@@ -2066,7 +2066,7 @@ C Print statistics
 #ifdef PVM_VER
       PRINT *, 'Total time         :', DFLOAT(calctime)/100.D0/60.D0
       PRINT *, 'Communication time :', DFLOAT(commtime)/100.D0/60.D0
-#else 
+#else
       PRINT *, 'Total time :', DFLOAT(calctime)/100.D0/60.D0
 #endif
 #endif
@@ -2128,7 +2128,7 @@ C PBC in the y-direction
 
          nall=na+nx+ny
 C Start up slaves
-         CALL pvmfspawn(EXECNAME, 
+         CALL pvmfspawn(EXECNAME,
      _        0, "*", ntask-1, alltids, dummy)
 #ifdef DEBUG
          PRINT *, 'Number of task spawned: ', dummy
@@ -2229,7 +2229,7 @@ C Start up slaves
 #endif
 #ifdef DEBUG
             PRINT *, 'Sending INIT to child', alltids(i)
-#endif 
+#endif
          ENDDO
       ELSE
 C---------------------------------------
@@ -2301,7 +2301,7 @@ C iarray(5) is not used
             map(imap+4)=Icell(i+1, j)
          ENDDO
       ENDDO
-      
+
       CALL MarInit(1, 1)
 
 #ifdef DEBUG
@@ -2316,7 +2316,7 @@ C parameters contain all the information about then simulation.     C
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       SUBROUTINE ReadParameters
-      
+
       IMPLICIT NONE
       INCLUDE 'mdreac.inc'
 #include "mdreac.common"
@@ -2396,7 +2396,7 @@ C number of cpus
 #endif
 
  4010 FORMAT (A15, F12.8)
- 4020 FORMAT (A15, I7)
+ 4020 FORMAT (A15, I10)
 
       END
 
@@ -2476,7 +2476,7 @@ C      filename(8:7+n)=str
       CALL NumToStr2(stepno, filename, 8)
 
       OPEN (10, FILE=filename, STATUS='NEW')
-      
+
       DO i=1, nall
          WRITE (10, 5010) qx(i), qy(i), label(i)
       ENDDO
@@ -2517,7 +2517,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
 c=============================================================
 c Structure factor and correlation function subroutine
-c The structure factor is only computed for one of the 
+c The structure factor is only computed for one of the
 c species, namely A.
 c=============================================================
 
@@ -2532,7 +2532,7 @@ c=============================================================
       DIMENSION sfunc(0:256), corel(0:256), number(0:256)
       INTEGER   ndim(2), species(ntot)
       REAL*8    factor
-      
+
  2    xsize=Len/DFLOAT(l)
       param=xsize**2/FLOAT(nsite)
       DO 30 i=1, num
@@ -2588,7 +2588,7 @@ c---------------------------------------------
       DO 60 i=1, nsite
          cr(i)=data(2*i-1)/float(nsite)
  60   CONTINUE
-      
+
       DO 70 i=1, nsite
          iy=MOD(i-1, l)
          ix=INT((i-1)/l)
@@ -2598,7 +2598,7 @@ c---------------------------------------------
          sfunc(kval)=sfunc(kval)+sf(i)
          corel(kval)=corel(kval)+cr(i)
          number(kval)=number(kval)+1
- 70   CONTINUE 
+ 70   CONTINUE
       DO 80 i=0, l/2
          IF (number(i) .GT. 0) THEN
             sfunc(i)=sfunc(i)/DFLOAT(number(i))
@@ -2692,7 +2692,7 @@ C subroutine should only be called by the parent process.           C
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       SUBROUTINE RecvPos
-      
+
       IMPLICIT NONE
       INCLUDE 'mdreac.inc'
 #include "mdreac.common"
@@ -2731,7 +2731,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       PRINT *, 'END RecvPos'
 #endif
       END
-     
+
 
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 C SendPos sends the positions to the parent process, i.e. this sub- C
@@ -2793,7 +2793,7 @@ C---------------------------------------
       DO i=1, num
          CALL RandGauss(vx(i), vy(i))
       ENDDO
-      
+
 C---------------------------------------
 C Place the particles lattice-like
 C---------------------------------------
@@ -2876,7 +2876,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 #include "mdreac.common"
 
       INTEGER i
-      
+
       meansqr=0.D0
       DO i=1, num
          meansqr=meansqr+(R0x(i)-qx(i)+DFLOAT(nboxx(i))*Len)**2
@@ -2953,7 +2953,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       IF (numb .NE. 0) THEN
          phi=phi/DFLOAT(numb)
       ENDIF
-      
+
 
       DO nabor1=-1, 1
          DO nabor2=-1, 1
@@ -3004,7 +3004,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       INTEGER time, i, number1(4), number2(4)
       REAL*8  conc(4)
-      
+
       DO i=1, 4
          number1(i)=0
          number2(i)=0
@@ -3035,7 +3035,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
             number2(4)=number2(4)+1
          ENDIF
       ENDDO
-      
+
       DO i=1, 4
          IF (number2(i) .EQ. 0) THEN
             conc(i)=0.D0
@@ -3115,7 +3115,7 @@ C Greather than 0.5 => pick for reactor
                vy(i-1)=vx(i)
                label(i-1)=label(i)
             ENDDO
-         ENDIF        
+         ENDIF
       ELSE
          CALL RandInt(numII, indexI)
          CALL RandUnit(trailX)
@@ -3187,9 +3187,9 @@ C Inline function
 
       icellI=Icell(INT((qx(index)+len2)/bufzone),
      _     INT((qy(index)+len2)/bufzone))
-      icellII=Icell(INT((trailX+len2II)/bufzone), 
+      icellII=Icell(INT((trailX+len2II)/bufzone),
      _     INT((trailY+len2II)/bufzone))
-      
+
 C Reactor
       rxi=qx(index)
       ryi=qy(index)
@@ -3197,7 +3197,7 @@ C Reactor
       DO c1=-1, 1
          DO c2=-1, 1
             cell=Icell(c1+INT((qx(index)+len2)/bufzone),
-     _           c2+INT((qy(index)+len2)/bufzone))            
+     _           c2+INT((qy(index)+len2)/bufzone))
             i=head(icell)
  1010       IF (i .EQ. 0) THEN
                IF (i .NE. index) THEN
@@ -3212,7 +3212,7 @@ C Reactor
                      ryij=ryij-len2
                   ELSEIF (ryij .LT. len2m) THEN
                      ryij=ryij+len2
-                  ENDIF 
+                  ENDIF
                   r2=rxij**2+ryij**2
                   IF (ilab .NE. label(i)) THEN
                      IF (r2 .LT. r2cut1) THEN
@@ -3241,7 +3241,7 @@ C Reservoir
       DO c1=-1, 1
          DO c2=-1, 1
             cell=Icell(c1+INT((trailX+len2II)/bufzone),
-     _           c2+INT((trailY+len2II)/bufzone))            
+     _           c2+INT((trailY+len2II)/bufzone))
             i=headII(icell)
  1020       IF (i .EQ. 0) THEN
                IF (i .NE. index) THEN
@@ -3256,7 +3256,7 @@ C Reservoir
                      ryij=ryij-len2II
                   ELSEIF (ryij .LT. len2mII) THEN
                      ryij=ryij+len2II
-                  ENDIF 
+                  ENDIF
                   r2=rxij**2+ryij**2
                   IF (r2 .LT. r2cut2) THEN
                      r2=1.D0/r2
@@ -3296,9 +3296,9 @@ C Inline function
 
       icellI=Icell(INT((qx(index)+len2)/bufzone),
      _     INT((qy(index)+len2)/bufzone))
-      icellII=Icell(INT((trailX+len2II)/bufzone), 
+      icellII=Icell(INT((trailX+len2II)/bufzone),
      _     INT((trailY+len2II)/bufzone))
-      
+
 C Reactor
       rxi=trailX
       ryi=trailY
@@ -3306,7 +3306,7 @@ C Reactor
       DO c1=-1, 1
          DO c2=-1, 1
             cell=Icell(c1+INT((trailX+len2)/bufzone),
-     _           c2+INT((trailY+len2)/bufzone))            
+     _           c2+INT((trailY+len2)/bufzone))
             i=head(icell)
  1010       IF (i .EQ. 0) THEN
                IF (i .NE. index) THEN
@@ -3321,7 +3321,7 @@ C Reactor
                      ryij=ryij-len2
                   ELSEIF (ryij .LT. len2m) THEN
                      ryij=ryij+len2
-                  ENDIF 
+                  ENDIF
                   r2=rxij**2+ryij**2
                   IF (ilab .NE. label(i)) THEN
                      IF (r2 .LT. r2cut1) THEN
@@ -3350,7 +3350,7 @@ C Reservoir
       DO c1=-1, 1
          DO c2=-1, 1
             cell=Icell(c1+INT((qxII(index)+len2II)/bufzone),
-     _           c2+INT((qxII(index)+len2II)/bufzone))            
+     _           c2+INT((qxII(index)+len2II)/bufzone))
             i=headII(icell)
  1020       IF (i .EQ. 0) THEN
                IF (i .NE. index) THEN
@@ -3365,7 +3365,7 @@ C Reservoir
                      ryij=ryij-len2II
                   ELSEIF (ryij .LT. len2mII) THEN
                      ryij=ryij+len2II
-                  ENDIF 
+                  ENDIF
                   r2=rxij**2+ryij**2
                   IF (r2 .LT. r2cut2) THEN
                      r2=1.D0/r2
@@ -3473,7 +3473,7 @@ C Neighbouring cells
                ENDIF
             ENDDO
             i=listII(i)
-            GOTO 2010   
+            GOTO 2010
          ENDIF
       ENDDO
       END
@@ -3521,7 +3521,7 @@ C Init. the forces
          fxII(i)=0.D0
          fyII(i)=0.D0
       ENDDO
-      
+
 C Loop over pairs
       DO k=1, numbpairII
          i=ipairII(k)
@@ -3542,7 +3542,7 @@ C Which potential to use
          ENDIF
       ENDDO
       END
-#endif /* RESERVOIR */  
+#endif /* RESERVOIR */
 
 
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -3569,7 +3569,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
             rxij=rxi-qx(j)
             ryij=ryi-qy(j)
             rxij=rxij-Len*DNINT(rxij*iLen)
-            ryij=ryij-Len*DNINT(ryij*iLen)                              
+            ryij=ryij-Len*DNINT(ryij*iLen)
             r2=rxij**2+ryij**2
             IF (r2 .LT. bufzone2) THEN
                nlist=nlist+1
@@ -3606,10 +3606,9 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 #endif PVM_VER
 #endif /* VERLET */
 
-            
+
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 C A number of external routines is included.                        C
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       INCLUDE 'randgen.f'
-      
