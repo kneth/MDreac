@@ -1,9 +1,8 @@
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 C Molecular Dynamics program for reactive Lennard-Jones mixtures.   C
 C                                                                   C
-C (C) Copyright 1995-1999 by                                        C
-C Kenneth Geisshirt <kneth@sslug.dk>                                C
-C http://www.sslug.dk/~kneth                                        C
+C (C) Copyright 1995-2020 by                                        C
+C Kenneth Geisshirt <geisshirt@gmail.com>                           C
 C                                                                   C
 C History:                                                          C
 C   5 Oct 1995: main program, ComputeForces, NoseHoover,            C
@@ -100,7 +99,8 @@ C               in WriteFinal corrected.                            C
 C   1 Jul 1997: Reservoir-model implemented.                        C
 C   1 Aug 1997: Verlet list implemented.                            C
 C  21 Jun 1999: Dimerisation code added.                            C
-C   5 Jul 1999: Cont dimerisation code.                            C
+C   5 Jul 1999: Cont dimerisation code.                             C
+C  30 Dec 2019: Build with a modern Fortran compiler (gcc v8)       C
 C                                                                   C
 C References:                                                       C
 C  [1]  S. Toxvaerd, Molec. Phys., 72(1), 159-168, 1991.            C
