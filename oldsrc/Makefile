@@ -44,30 +44,5 @@ pargeninit: mdreac.f mdreac.inc mdreac.common randgen.f randgen.inc
 	strip pargeninit
 	$(MV) pargeninit $(DIST)
 
-append: append.c
-	$(CC) $(OPTFLAGS) -o append append.c
-	strip append
-	$(MV) append $(DIST)
-
-rateconst: rateconst.f
-	$(FC) $(OPTFLAG) -o rateconst rateconst.f
-	strip rateconst
-	$(MV) rateconst $(DIST)
-
-sf3d: sf3d.f
-	$(FC) $(OPTFLAG) -o sf3d sf3d.f
-	strip sf3d
-	$(MV) sf3d $(DIST)
-
-reacener: reacener.f
-	$(FC) $(OPTFLAGS) -o reacener reacener.f
-	strip reacener
-	$(MV) reacener $(DIST)
-
-diffcoeff: diffcoeff.f
-	$(FC) $(OPTFLAGS) -o diffcoeff diffcoeff.f
-	strip diffcoeff
-	$(MV) diffcoeff $(DIST)
-
 clean:
 	$(RM) core *~ *.o *.tmp.f
