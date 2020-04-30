@@ -28,8 +28,8 @@ def main(argv):
             N = float(arg)
 
     data = genfromtxt('mdreac.reac.csv', delimiter=',')
-    for m in np.mean(data, 0):
-        print(2*m/(rho*N))
+    m = np.mean(data, 0)[0]
+    print(2*m/(rho*N))
 
 if __name__ == "__main__":
    main(sys.argv[1:])
