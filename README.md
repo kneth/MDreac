@@ -10,6 +10,8 @@ GNU Fortran v8 or later.
 
 A parallel version is included. It is done using PVM.
 
+See `oldsrc/README.md` for further information.
+
 md2.c
 -----
 A newer - and simpler - version is located in the directory `src`. It is written in C and was
