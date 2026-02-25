@@ -225,17 +225,7 @@ double pbc(double d) {
 }
 
 size_t Icell(size_t i, size_t j) {
-    if (i == -1) {
-        i = nCells-1;
-    } else if (i == nCells) {
-        i = 0;
-    }
-    if (j == -1) {
-        j = nCells-1;
-    } else if (j == nCells) {
-        j = 0;
-    }
-    return i*nCells+j;
+    return (i % nCells) * nCells + (j % nCells);
 }
 
 void ApplyPerBoundaries(void) {

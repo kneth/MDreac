@@ -1,6 +1,7 @@
 .PHONY: clean install check-syntax
 CC	= gcc
-CFLAGS	= -Wall -O3 -fPIC #-fopenmp
+#CFLAGS	= -Wall -O3 -fPIC #-fopenmp
+CFLAGS	= -g
 LDFLAGS	= -lm
 INSTALL	= install
 PREFIX	= ${HOME}
