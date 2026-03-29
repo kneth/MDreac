@@ -4,14 +4,8 @@
 
 import numpy as np
 from numpy import genfromtxt
-
-from sklearn.linear_model import LinearRegression
+from scipy import stats
 
 data = genfromtxt('mdreac.diff.csv', delimiter=',')
-t = data[:, 0].reshape(-1, 1)
-d = data[:, 1]
-
-regressor = LinearRegression()
-model = regressor.fit(t, d)
-print(0.25 * model.coef_[0])
-
+slope, intercept, r_value, p_value, std_err = stats.linregress(data[:, 0], data[:, 1])
+print(0.25 * slope)
