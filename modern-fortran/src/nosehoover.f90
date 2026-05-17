@@ -4,35 +4,37 @@ module NoseHoover
 
   implicit none
 
+  private
   ! parameters
-  integer(int64) n
-  real(real64) dt
-  real(real64) Q
-  real(real64) T
+  integer n
+  real dt
+  real Q
+  real T
 
   ! state
-  real(real64) eta
-  real(real64) K
+  real eta
+  real K
 
   ! derived parameters
-  real(real64) dt48
-  real(real64) dof
-  real(real64) invQ
+  real dt48
+  real dof
+  real invQ
 
 contains
 
-  subroutine initalize(n_particles, delta_t, Q, target_T)
+  subroutine initialize(n_particles, delta_t, Q, target_T)
+
     implicit none
 
-    integer(int64), intent(in) n_particles
-    real(real64), intent(in) delta_t
-    real(real64), intent(in) Q
-    real(real64), intent(in) target_T
-
+    integer, intent(in) :: n_particles
+    real, intent(in) :: delta_t
+    real, intent(in) :: Q
+    real, intent(in) :: target_T
 
     ! parameters
     n = n_particles
     dt = delta_t
+    T = target_T
 
     ! derived parameters
     dt48 = 48.0*delta_t
@@ -41,46 +43,41 @@ contains
 
     ! initialize state
     eta = 0.0
-  end subroutine initalize
+  end subroutine initialize
 
   subroutine onestep(rx, ry, rz, vx, vy, vz, fx, fy, fz)
     implicit none
 
-    real(real64), intent(in, out) rx(:)
-    real(real64), intent(in, out) ry(:)
-    real(real64), intent(in, out) rz(:)
-    real(real64), intent(in, out) vx(:)
-    real(real64), intent(in, out) vy(:)
-    real(real64), intent(in, out) vz(:)
-    real(real64), intent(in) fx(:)
-    real(real64), intent(in) fy(:)
-    real(real64), intent(in) fz(:)
+    real, allocatable, intent(in out) :: rx(:)
+    real, allocatable, intent(in out) :: ry(:)
+    real, allocatable, intent(in out) :: rz(:)
+    real, allocatable, intent(in out) :: vx(:)
+    real, allocatable, intent(in out) :: vy(:)
+    real, allocatable, intent(in out) :: vz(:)
+    real, allocatable, intent(in) :: fx(:)
+    real, allocatable, intent(in) :: fy(:)
+    real, allocatable, intent(in) :: fz(:)
 
-    integer(int64) i
-    real(real64) sum
+    real :: eta1, eta2, ssum
 
     K = 0.5*dt*eta
     eta1 = 1.0 - K
     eta2 = 1.0/(1.0+K)
-    sum = 0.0
 
-    do i=1, n
-       vx(i) = (vx(i)*eta1 + dt48*fx(i)) * eta2
-       vy(i) = (vy(i)*eta1 + dt48*fy(i)) * eta2
-       vz(i) = (vz(i)*eta1 + dt48*fz(i)) * eta2
-    end do
+    ! update velocities using array operations
+    vx = (vx*eta1 + dt48*fx) * eta2
+    vy = (vy*eta1 + dt48*fy) * eta2
+    vz = (vz*eta1 + dt48*fz) * eta2
 
-    do i=1, n
-       rx(i) = rx(i) + vx(i)*dt
-       ry(i) = ry(i) + vy(i)*dt
-       rz(i) = rz(i) + vz(i)*dt
-    end do
+    ! update positions
+    rx = rx + vx*dt
+    ry = ry + vy*dt
+    rz = rz + vz*dt
 
-    do i=1, n
-       sum = sum + vx(i)**2 + vy(i)**2 + vz(i)**2
-    end do
+    ! kinetic energy sum (elemental arrays)
+    ssum = sum(vx**2 + vy**2 + vz**2)
 
-    eta = eta + (sum-dof*T) * invQ*dt
+    eta = eta + (ssum - dof*T) * invQ*dt
   end subroutine onestep
 
 end module NoseHoover
